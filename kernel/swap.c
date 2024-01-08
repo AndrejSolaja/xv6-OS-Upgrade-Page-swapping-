@@ -3,8 +3,6 @@
 #include "riscv.h"
 #include "defs.h"
 
-//treba lock tokom swapovanja sa nekom promenjivom za yield
-
 frameDsc frameDescTable[NUMBER_OF_FRAMES];
 int kernelLoaded = 0;
 int globalYieldLock = 0;
@@ -22,7 +20,7 @@ void clearFrameDesc(uint64 pa){
     int frameNum = getFrameNumber(pa);
     frameDescTable[frameNum].pte = 0;
     frameDescTable[frameNum].restrictedSwap = 0;
-    frameDescTable[frameNum].refHistory = 0;
+    frameDescTable[getFrameNumber((uint64)pa)].refHistory = HIGHEST_BIT;
 }
 
 void initDisk(){
@@ -60,50 +58,76 @@ void read_disk(int blkNum, uchar* data, int busy_wait){
 }
 
 void updateRefBits(){
+    globalYieldLock++;
+    //printf("update");
     for(int i = 0; i < NUMBER_OF_FRAMES; i++){
-        if (frameDescTable[i].restrictedSwap || frameDescTable[i].pte == 0) continue;
-        int accessBit = *frameDescTable[i].pte & PTE_A;
+        if (frameDescTable[i].pte == 0) continue;
+        uint64 accessBit = *frameDescTable[i].pte & PTE_A;
         frameDescTable[i].refHistory >>= 1;
-        if(accessBit > 0) frameDescTable[i].refHistory |= (1UL << 63);
-        //clear A bit
-        *frameDescTable[i].pte = ~PTE_A & *frameDescTable[i].pte;
+        if(accessBit) frameDescTable[i].refHistory |= HIGHEST_BIT;
+        *frameDescTable[i].pte = ~PTE_A & *frameDescTable[i].pte; //clear A bit
     }
+    globalYieldLock--;
 }
 
-//TODO
+int totalWorkingSet = 0;
+void thrashing(){
+    //globalYieldLock++;
+    static int suspendedCnt = 0;
+    totalWorkingSet = 0;
+
+    for(int i = 0; i < NUMBER_OF_FRAMES; i++){
+        if (frameDescTable[i].pte == 0) continue;
+        if(frameDescTable[i].refHistory & 0xFFF0000000000000) totalWorkingSet++;
+    }
+    if(totalWorkingSet > 100) printf("totalWorkingSet: %d\n", totalWorkingSet);
+    if(totalWorkingSet > NUMBER_OF_FRAMES * 7/10) {
+        setSuspended(myproc());
+        suspendedCnt++;
+        printf("Suspended\n");
+    }
+    else if(suspendedCnt > 0){
+        suspendedCnt -= unsuspend();
+        printf("Unsuspended\n");
+    }
+    //globalYieldLock--;
+}
+
+//LRU
+pte_t* getVictim(){
+    globalYieldLock++;
+    //printf("victim\n");
+    int index = -1;
+    uint64 minValue = 0xFFFFFFFFFFFFFFFF;
+    for(int i = 0; i < NUMBER_OF_FRAMES; i++){
+        if (frameDescTable[i].restrictedSwap || frameDescTable[i].pte == 0 || !(PTE_U & *frameDescTable[i].pte)) continue;
+        if(frameDescTable[i].refHistory < minValue){
+            minValue = frameDescTable[i].refHistory;
+            index = i;
+        }
+    }
+    globalYieldLock--;
+    return frameDescTable[index].pte;
+}
+
+//FIFO
 //pte_t * getVictim(){
-//    globalYieldLock++;
+//    static int hand = 0;
 //
-//    int index = -1;
-//    uint64 minValue = MAXVA; // Valjda 111111
-//    for(int i = 0; i < NUMBER_OF_FRAMES; i++){
-//        if (frameDescTable[i].restrictedSwap || frameDescTable[i].pte == 0) continue;
-//        if(frameDescTable[i].refHistory < minValue){
-//            minValue = frameDescTable[i].refHistory;
-//            index = i;
+//    while(1){
+//        if(!frameDescTable[hand].restrictedSwap && frameDescTable[hand].pte && (*frameDescTable[hand].pte & PTE_U )){
+//            int temp = hand;
+//            hand++;
+//            if(hand > NUMBER_OF_FRAMES) hand = 0 ;
+//            return frameDescTable[temp].pte;
 //        }
+//
+//        hand++;
+//        if(hand > NUMBER_OF_FRAMES) hand = 0 ;
 //    }
-//    globalYieldLock--;
-//    return frameDescTable[index].pte;
+//
 //}
 
-pte_t * getVictim(){
-    static int hand = 0;
-
-    while(1){
-        if(!frameDescTable[hand].restrictedSwap && frameDescTable[hand].pte && (*frameDescTable[hand].pte & PTE_U )){
-            int temp = hand;
-            hand++;
-            if(hand > NUMBER_OF_FRAMES) hand = 0 ;
-            return frameDescTable[temp].pte;
-        }
-
-        hand++;
-        if(hand > NUMBER_OF_FRAMES) hand = 0 ;
-    }
-
-}
-// TODO
 void swapIn(pte_t *pte){
     globalYieldLock++;
 
@@ -119,7 +143,8 @@ void swapIn(pte_t *pte){
     *pte = *pte | PTE_V; // valid = 1
 
     frameDescTable[getFrameNumber((uint64)pa)].pte = pte;
-    frameDescTable[getFrameNumber((uint64)pa)].refHistory = 0;
+    frameDescTable[getFrameNumber((uint64)pa)].refHistory = HIGHEST_BIT;
+    //frameDescTable[getFrameNumber((uint64)pa)].frameOwner = myproc();
 
     globalYieldLock--;
 }
@@ -127,6 +152,7 @@ void* swapOut(){
     globalYieldLock++;
 
     pte_t* victim = getVictim();
+    if(victim == 0) printf("LOSE VRACA VICTIMA");
     int blockNum = dalloc();
     if(blockNum == -1) { //pun disk
         //printf("PUN DISK");
@@ -134,8 +160,6 @@ void* swapOut(){
         return 0;
     }
     uint64 pa = PTE2PA(*victim);
-
-
 
     *victim = *victim | PTE_RSW1; // rsw = 1
     *victim = *victim & (~PTE_V); // valid = 0
@@ -146,11 +170,11 @@ void* swapOut(){
     write_disk(blockNum, (uchar*)pa, 1); //upise na disk
 
     frameDescTable[getFrameNumber(pa)].pte = 0;
-    frameDescTable[getFrameNumber(pa)].refHistory = 0;
-
+    frameDescTable[getFrameNumber(pa)].refHistory = HIGHEST_BIT;
+    //frameDescTable[getFrameNumber((uint64)pa)].frameOwner = 0;
 
     //printf("SWAP OUT\n");
-
+    sfence_vma(); //TLB FLUSH
     globalYieldLock--;
     return (void*)pa;
 }

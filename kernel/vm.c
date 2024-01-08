@@ -226,9 +226,10 @@ uvmcreate()
   if(pagetable == 0)
     return 0;
 
-  //DODATO
+  //TODO
   frameDescTable[getFrameNumber((uint64)pagetable)].restrictedSwap = 1;
-  //frameDescTable[getFrameNumber((uint64)pagetable)].pte = pagetable;
+  frameDescTable[getFrameNumber((uint64)pagetable)].pte = pagetable;
+
   memset(pagetable, 0, PGSIZE);
   return pagetable;
 }

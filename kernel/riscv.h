@@ -347,6 +347,8 @@ typedef uint64 *pagetable_t; // 512 PTEs
 #define PTE_RSW1 (1L << 8) //DODATO
 #define PTE_RSW2 (1L << 9)
 
+#define HIGHEST_BIT (1L << 63)
+
 // shift a physical address to the right place for a PTE.
 #define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)
 

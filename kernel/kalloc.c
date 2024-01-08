@@ -89,13 +89,17 @@ kalloc(void)
   }
 
 //  if(!r){
-//    void* pa = swapOut();
-//    //memset((char*)pa, 5, PGSIZE); // fill with junke
-//    return pa;
+//    r = swapOut();
+//    //memset((char*)r, 5, PGSIZE); // fill with junke
+//
 //  }
 
   if(!kernelLoaded){
     frameDescTable[getFrameNumber((uint64)r)].restrictedSwap = 1;
+  }
+  if(r){
+      //frameDescTable[getFrameNumber((uint64)r)].frameOwner = myproc();
+      frameDescTable[getFrameNumber((uint64)r)].refHistory = HIGHEST_BIT;
   }
 
   return (void*)r;

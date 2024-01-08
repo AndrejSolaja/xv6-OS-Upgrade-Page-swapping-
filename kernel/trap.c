@@ -238,6 +238,20 @@ devintr()
     // software interrupt from a machine-mode timer interrupt,
     // forwarded by timervec in kernelvec.S.
 
+    //DODATO
+    static int refUpdateCnt = 0;
+    if(kernelLoaded && ++refUpdateCnt > 0){
+        updateRefBits();
+        refUpdateCnt = 0;
+    }
+
+    static int thrashingCnt = 0;
+    if(kernelLoaded && thrashingCnt++ > 5){
+        thrashing();
+        thrashingCnt = 0;
+    }
+
+
     if(cpuid() == 0){
       clockintr();
     }

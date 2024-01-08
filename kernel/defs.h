@@ -109,6 +109,14 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+void            setSuspended(struct proc *p);
+void            setRunnable(struct proc *p);
+int             suspended(struct proc *p);
+void            setWorkingSetSize(struct proc *p, int size);
+int             getWorkingSetSize(struct proc *p);
+int             unsuspend();
+
+
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -196,19 +204,22 @@ typedef struct{
     int restrictedSwap;
     pte_t* pte;
     uint64 refHistory;
-
+    struct proc* frameOwner;
 } frameDsc;
 
 extern frameDsc frameDescTable[];
 extern int kernelLoaded;
 extern int globalYieldLock; // 1 - locked, 0 - unlocked
 extern void* swapBuffer;
+extern int totalWorkingSet;
 
 int getFrameNumber(uint64 pa);
 void swapIn(pte_t *pte);
 void* swapOut();
 void initDisk();
 void clearFrameDesc(uint64 pa);
+void updateRefBits();
+void thrashing();
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

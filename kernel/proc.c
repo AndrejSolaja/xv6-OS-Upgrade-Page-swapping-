@@ -568,7 +568,6 @@ void
 wakeup(void *chan)
 {
   struct proc *p;
-
   for(p = proc; p < &proc[NPROC]; p++) {
     if(p != myproc()){
       if ((holding(&p->lock) && p->state == USED) || (holding(&p->lock) && p->state == ZOMBIE)) {
@@ -669,7 +668,8 @@ procdump(void)
   [SLEEPING]  "sleep ",
   [RUNNABLE]  "runble",
   [RUNNING]   "run   ",
-  [ZOMBIE]    "zombie"
+  [ZOMBIE]    "zombie",
+  [SUSPENDED] "suspended"
   };
   struct proc *p;
   char *state;
@@ -685,4 +685,38 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+void setSuspended(struct proc *p)
+{
+    acquire(&p->lock);
+    p->state = SUSPENDED;
+    release(&p->lock);
+}
+
+void setRunanble(struct proc *p)
+{
+    acquire(&p->lock);
+    p->state = RUNNABLE;
+    release(&p->lock);
+}
+
+int suspended(struct proc *p){
+    int ret = 0;
+    acquire(&p->lock);
+    if(p->state == RUNNABLE) ret = 1;
+    release(&p->lock);
+    return ret;
+}
+
+int unsuspend(){
+    int numOfUnsuspended = 0;
+    struct proc *p;
+    for(p = proc; p < &proc[NPROC]; p++) {
+        if(p->state == SUSPENDED) {
+            p->state = RUNNABLE;
+            numOfUnsuspended++;
+        }
+    }
+    return numOfUnsuspended;
 }
