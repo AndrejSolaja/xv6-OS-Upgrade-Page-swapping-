@@ -713,10 +713,12 @@ int unsuspend(){
     int numOfUnsuspended = 0;
     struct proc *p;
     for(p = proc; p < &proc[NPROC]; p++) {
+        acquire(&p->lock);
         if(p->state == SUSPENDED) {
             p->state = RUNNABLE;
             numOfUnsuspended++;
         }
+        release(&p->lock);
     }
     return numOfUnsuspended;
 }

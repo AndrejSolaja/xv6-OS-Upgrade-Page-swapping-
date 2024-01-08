@@ -78,17 +78,17 @@ void thrashing(){
 
     for(int i = 0; i < NUMBER_OF_FRAMES; i++){
         if (frameDescTable[i].pte == 0) continue;
-        if(frameDescTable[i].refHistory & 0xFFF0000000000000) totalWorkingSet++;
+        if(frameDescTable[i].refHistory & 0xFFFFF00000000000) totalWorkingSet++;
     }
-    if(totalWorkingSet > 100) printf("totalWorkingSet: %d\n", totalWorkingSet);
+    //if(totalWorkingSet > 100) printf("totalWorkingSet: %d\n", totalWorkingSet);
     if(totalWorkingSet > NUMBER_OF_FRAMES * 7/10) {
         setSuspended(myproc());
         suspendedCnt++;
-        printf("Suspended\n");
+        //printf("Suspended\n");
     }
     else if(suspendedCnt > 0){
         suspendedCnt -= unsuspend();
-        printf("Unsuspended\n");
+        //printf("Unsuspended\n");
     }
     //globalYieldLock--;
 }
