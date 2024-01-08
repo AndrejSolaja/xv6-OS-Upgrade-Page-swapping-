@@ -2071,6 +2071,8 @@ sbrkmuch(char *s)
   amt = BIG - (uint64)a;
   p = sbrk(amt);
 
+    //printf("0XXXX\n");
+
   if (p != a) {
     printf("%s: sbrk test failed to grow big address space; enough phys mem?\n", s);
     exit(1);
@@ -2078,11 +2080,17 @@ sbrkmuch(char *s)
 
   // touch each page to make sure it exists.
   char *eee = sbrk(0);
-  for(char *pp = eee-4096; pp > a; pp -= 4096)
-    *pp = 1;
+  for(char *pp = eee-4096; pp > a; pp -= 4096){
+      *pp = 1;
+  }
+
+
+  //printf("1XXXX\n");
 
   lastaddr = (char*) (BIG-1);
   *lastaddr = 99;
+
+
 
   // can one de-allocate?
   a = sbrk(0);
@@ -2092,11 +2100,15 @@ sbrkmuch(char *s)
     exit(1);
   }
 
+  //printf("2XXXX\n");
+
   c = sbrk(0);
   if(c != a - PGSIZE){
     printf("%s: sbrk deallocation produced wrong address, a %x c %x\n", s, a, c);
     exit(1);
   }
+
+    //printf("3XXXX\n");
 
   // can one re-allocate that page?
   a = sbrk(0);
@@ -2106,11 +2118,15 @@ sbrkmuch(char *s)
     exit(1);
   }
 
+    //printf("4XXXX\n");
+
   if(*lastaddr == 99){
     // should be zero
     printf("%s: sbrk de-allocation didn't really deallocate\n", s);
     exit(1);
   }
+
+    //printf("5XXXX\n");
 
   a = sbrk(0);
   c = sbrk(-(sbrk(0) - oldbrk));
@@ -2118,6 +2134,9 @@ sbrkmuch(char *s)
     printf("%s: sbrk downsize failed, a %x c %x\n", s, a, c);
     exit(1);
   }
+
+    //printf("6XXXX\n");
+
 }
 
 // can we read the kernel's memory?

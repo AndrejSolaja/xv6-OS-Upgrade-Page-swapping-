@@ -202,15 +202,13 @@ typedef struct{
 extern frameDsc frameDescTable[];
 extern int kernelLoaded;
 extern int globalYieldLock; // 1 - locked, 0 - unlocked
+extern void* swapBuffer;
 
 int getFrameNumber(uint64 pa);
-//int dalloc();
-//void dfree(int blkNum);
-//void write_disk(int blkNum, uchar* data, int busy_wait);
-//void read_disk(int blkNum, uchar* data, int busy_wait);
-void swapIn(pte_t *pte;);
-void swapOut();
-
+void swapIn(pte_t *pte);
+void* swapOut();
+void initDisk();
+void clearFrameDesc(uint64 pa);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

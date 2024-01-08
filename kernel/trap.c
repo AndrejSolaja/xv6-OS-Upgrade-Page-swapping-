@@ -65,7 +65,38 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
+  }else if(r_scause() == 12 || r_scause() == 13 || r_scause() == 15){
+      //TODO IZMENITI , STARAIGT UP COPY PASTE
+      uint64 va = r_stval();
+      uint64 scause=r_scause();
+
+      globalYieldLock++;
+
+      pte_t * pte = walk(myproc()->pagetable, va, 0);
+      if(!pte){
+          printf("PAGE NOT LOADED pte = 0\n");
+          setkilled(p);
+      }else if(scause==12&&((*pte & PTE_X))==0){
+          printf("ACCESS VIOLATION X\n");
+          setkilled(p);
+      }else if(scause==13&&((*pte & PTE_R))==0){
+          printf("ACCESS VIOLATION R\n");
+          setkilled(p);
+      }else if(scause==15&&((*pte & PTE_W))==0){
+          printf("ACCESS VIOLATION W\n");
+          setkilled(p);
+      }else{
+          uint64 pa = walkaddr(p->pagetable,va);
+          if(!pa){
+              printf("PAGE NOT LOADED pa = 0\n");
+              setkilled(p);
+          }
+      }
+
+      globalYieldLock--;
+
+
+  }else if((which_dev = devintr()) != 0){
     // ok
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);

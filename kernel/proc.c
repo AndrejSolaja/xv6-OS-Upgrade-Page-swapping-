@@ -571,7 +571,7 @@ wakeup(void *chan)
 
   for(p = proc; p < &proc[NPROC]; p++) {
     if(p != myproc()){
-      if (holding(&p->lock) && p->state == USED ) {
+      if ((holding(&p->lock) && p->state == USED) || (holding(&p->lock) && p->state == ZOMBIE)) {
         // Process is being created.
         continue;
       }

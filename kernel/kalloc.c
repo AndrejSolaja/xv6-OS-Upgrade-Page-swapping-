@@ -28,6 +28,8 @@ kinit()
 {
   initlock(&kmem.lock, "kmem");
   freerange(end, (void*)PHYSTOP);
+  initDisk();
+  swapBuffer = kalloc();
 }
 
 void
@@ -60,6 +62,9 @@ kfree(void *pa)
   r->next = kmem.freelist;
   kmem.freelist = r;
   release(&kmem.lock);
+
+  //frameDescTable[getFrameNumber((uint64)pa)].pte = 0;
+  clearFrameDesc((uint64)pa);
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -72,13 +77,6 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  //DODATO
-  if(!r){
-      //TODO treba videti logiku
-      uint64 adr = swapOut();
-      kfree(adr);
-      r = kmem.freelist;
-  }
 
   if(r)
     kmem.freelist = r->next;
@@ -86,13 +84,19 @@ kalloc(void)
 
   if(r){
       memset((char*)r, 5, PGSIZE); // fill with junke
+  }else{
+      r = swapOut();
   }
+
+//  if(!r){
+//    void* pa = swapOut();
+//    //memset((char*)pa, 5, PGSIZE); // fill with junke
+//    return pa;
+//  }
 
   if(!kernelLoaded){
-      //TODO
-      frameDescTable[getFrameNumber(r)].restrictedSwap = 1;
+    frameDescTable[getFrameNumber((uint64)r)].restrictedSwap = 1;
   }
-
 
   return (void*)r;
 }

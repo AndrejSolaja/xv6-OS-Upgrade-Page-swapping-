@@ -51,7 +51,7 @@
 // from physical address 0x80000000 to PHYSTOP.
 #define KERNBASE 0x80000000L
 #define PHYSTOP (KERNBASE + 16*1024*1024)
-#define NUMBER_OF_FRAMES (PHYSTOP-KERNBASE)/PGSIZE;
+#define NUMBER_OF_FRAMES (PHYSTOP-KERNBASE)/PGSIZE
 
 // map the trampoline page to the highest address,
 // in both user and kernel space.

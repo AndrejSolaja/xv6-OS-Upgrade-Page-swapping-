@@ -90,14 +90,26 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
     return 0;
 
   for(int level = 2; level > 0; level--) {
-    pte_t *pte = &pagetable[PX(level, va)];
+      pte_t *pte = &pagetable[PX(level, va)];
     if(*pte & PTE_V) {
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else { //TODO Pre nego sto alocira novi treba da vidi da ne postoji na disku
-      if(!alloc || (pagetable = (pde_t*)kalloc()) == 0)
-        return 0;
-      memset(pagetable, 0, PGSIZE);
-      *pte = PA2PTE(pagetable) | PTE_V;
+        if(*pte & PTE_RSW1) {
+            swapIn(pte);
+            pagetable = (pagetable_t) PTE2PA(*pte);
+        }
+        else{
+            if(!alloc || (pagetable = (pde_t*)kalloc()) == 0)
+                return 0;
+
+            frameDescTable[getFrameNumber((uint64)pagetable)].pte = pte; //DODATO
+            frameDescTable[getFrameNumber((uint64)pagetable)].restrictedSwap = 1; //DODATO
+
+            memset(pagetable, 0, PGSIZE);
+            *pte = PA2PTE(pagetable) | PTE_V;
+        }
+
+
     }
   }
   return &pagetable[PX(0, va)];
@@ -119,7 +131,7 @@ walkaddr(pagetable_t pagetable, uint64 va)
   if(pte == 0)
     return 0;
   if((*pte & PTE_V) == 0){
-      if((*pte & PTE_RSW1) == 1) swapIn(pte);
+      if(*pte & PTE_RSW1) swapIn(pte); //DODATO
       else return 0;
   }
 
@@ -163,9 +175,8 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 
     //DODATO
     if(pa >= KERNBASE && myproc()){
-        frameDescTable[getFrameNumber(pa)].pte = pte
+        frameDescTable[getFrameNumber(pa)].pte = pte;
     }
-
 
     if(a == last)
       break;
@@ -191,7 +202,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     if((pte = walk(pagetable, a, 0)) == 0)
       panic("uvmunmap: walk");
     if((*pte & PTE_V) == 0){ //TODO dodati swap in
-        if((*pte & PTE_RSW1) == 1) swapIn(pte);
+        if(*pte & PTE_RSW1) swapIn(pte);
         else panic("uvmunmap: not mapped");
     }
     if(PTE_FLAGS(*pte) == PTE_V)
@@ -211,8 +222,13 @@ uvmcreate()
 {
   pagetable_t pagetable;
   pagetable = (pagetable_t) kalloc();
+
   if(pagetable == 0)
     return 0;
+
+  //DODATO
+  frameDescTable[getFrameNumber((uint64)pagetable)].restrictedSwap = 1;
+  //frameDescTable[getFrameNumber((uint64)pagetable)].pte = pagetable;
   memset(pagetable, 0, PGSIZE);
   return pagetable;
 }
@@ -323,11 +339,13 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   uint flags;
   char *mem;
 
+  globalYieldLock++;
+
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0) { //TODO swap in
-        if((*pte & PTE_RSW1) == 1) swapIn(pte);
+        if(*pte & PTE_RSW1) swapIn(pte);
         else panic("uvmcopy: page not present");
     }
     pa = PTE2PA(*pte);
@@ -340,10 +358,12 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       goto err;
     }
   }
+  globalYieldLock--;
   return 0;
 
  err:
   uvmunmap(new, 0, i / PGSIZE, 1);
+  globalYieldLock--;
   return -1;
 }
 
