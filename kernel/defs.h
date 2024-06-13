@@ -109,6 +109,7 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+//Dodato, pola se ne koristi
 void            setSuspended(struct proc *p);
 void            setRunnable(struct proc *p);
 int             suspended(struct proc *p);
@@ -204,7 +205,7 @@ typedef struct{
     int restrictedSwap;
     pte_t* pte;
     uint64 refHistory;
-    struct proc* frameOwner;
+    struct proc* frameOwner; //ne koristi se ipak za trenutnu implementaciju trashinga
 } frameDsc;
 
 extern frameDsc frameDescTable[];

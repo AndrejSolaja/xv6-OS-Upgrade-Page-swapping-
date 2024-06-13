@@ -66,35 +66,30 @@ usertrap(void)
 
     syscall();
   }else if(r_scause() == 12 || r_scause() == 13 || r_scause() == 15){
-      //TODO IZMENITI , STARAIGT UP COPY PASTE
+      //TODO
       uint64 va = r_stval();
-      uint64 scause=r_scause();
 
       globalYieldLock++;
 
       pte_t * pte = walk(myproc()->pagetable, va, 0);
       if(!pte){
-          printf("PAGE NOT LOADED pte = 0\n");
+          printf("pte = 0\n");
           setkilled(p);
-      }else if(scause==12&&((*pte & PTE_X))==0){
-          printf("ACCESS VIOLATION X\n");
+      }else if(r_scause() == 12 && !(*pte & PTE_X)){
+          printf("ERROR: Execute\n");
           setkilled(p);
-      }else if(scause==13&&((*pte & PTE_R))==0){
-          printf("ACCESS VIOLATION R\n");
+      }else if(r_scause() == 13 && !(*pte & PTE_R)){
+          printf("ERROR: Read\n");
           setkilled(p);
-      }else if(scause==15&&((*pte & PTE_W))==0){
-          printf("ACCESS VIOLATION W\n");
+      }else if(r_scause()==15 && !(*pte & PTE_W)){
+          printf("ERROR: Write\n");
           setkilled(p);
-      }else{
-          uint64 pa = walkaddr(p->pagetable,va);
-          if(!pa){
-              printf("PAGE NOT LOADED pa = 0\n");
-              setkilled(p);
-          }
+      }else if(!walkaddr(p->pagetable,va)){
+          printf("pa = 0\n");
+          setkilled(p);
       }
 
       globalYieldLock--;
-
 
   }else if((which_dev = devintr()) != 0){
     // ok

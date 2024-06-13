@@ -93,7 +93,7 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
       pte_t *pte = &pagetable[PX(level, va)];
     if(*pte & PTE_V) {
       pagetable = (pagetable_t)PTE2PA(*pte);
-    } else { //TODO Pre nego sto alocira novi treba da vidi da ne postoji na disku
+    } else { //TODO
         if(*pte & PTE_RSW1) {
             swapIn(pte);
             pagetable = (pagetable_t) PTE2PA(*pte);
@@ -102,8 +102,8 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
             if(!alloc || (pagetable = (pde_t*)kalloc()) == 0)
                 return 0;
 
-            frameDescTable[getFrameNumber((uint64)pagetable)].pte = pte; //DODATO
-            frameDescTable[getFrameNumber((uint64)pagetable)].restrictedSwap = 1; //DODATO
+            frameDescTable[getFrameNumber((uint64)pagetable)].pte = pte;
+            frameDescTable[getFrameNumber((uint64)pagetable)].restrictedSwap = 1;
 
             memset(pagetable, 0, PGSIZE);
             *pte = PA2PTE(pagetable) | PTE_V;
@@ -130,8 +130,8 @@ walkaddr(pagetable_t pagetable, uint64 va)
   pte = walk(pagetable, va, 0);
   if(pte == 0)
     return 0;
-  if((*pte & PTE_V) == 0){
-      if(*pte & PTE_RSW1) swapIn(pte); //DODATO
+  if((*pte & PTE_V) == 0){ //TODO
+      if(*pte & PTE_RSW1) swapIn(pte);
       else return 0;
   }
 
@@ -173,7 +173,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
       panic("mappages: remap");
     *pte = PA2PTE(pa) | perm | PTE_V;
 
-    //DODATO
+    //TODO
     if(pa >= KERNBASE && myproc()){
         frameDescTable[getFrameNumber(pa)].pte = pte;
     }
@@ -201,7 +201,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
     if((pte = walk(pagetable, a, 0)) == 0)
       panic("uvmunmap: walk");
-    if((*pte & PTE_V) == 0){ //TODO dodati swap in
+    if((*pte & PTE_V) == 0){ //TODO
         if(*pte & PTE_RSW1) swapIn(pte);
         else panic("uvmunmap: not mapped");
     }
@@ -345,7 +345,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
-    if((*pte & PTE_V) == 0) { //TODO swap in
+    if((*pte & PTE_V) == 0) { //TODO
         if(*pte & PTE_RSW1) swapIn(pte);
         else panic("uvmcopy: page not present");
     }

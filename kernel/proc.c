@@ -710,15 +710,17 @@ int suspended(struct proc *p){
 }
 
 int unsuspend(){
+    globalYieldLock++;
     int numOfUnsuspended = 0;
     struct proc *p;
     for(p = proc; p < &proc[NPROC]; p++) {
-        acquire(&p->lock);
+        //acquire(&p->lock);
         if(p->state == SUSPENDED) {
             p->state = RUNNABLE;
             numOfUnsuspended++;
         }
-        release(&p->lock);
+        //release(&p->lock);
     }
+    globalYieldLock--;
     return numOfUnsuspended;
 }
